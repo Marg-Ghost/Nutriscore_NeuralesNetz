@@ -1,0 +1,15 @@
+---Planung des Netzes---
+
+Ziel: Es soll von einem gegebenen Lebensmittel der Nutri-Score ausgegeben werden. Somit muss eine Eingabe der Klasse A,B,C,D,E zugeordnet werden.
+------------
+Aufbau:
+Interne Verfahren:
+Fehlerfunktion = die quadratische Fehlerfunktion = (y - t)^2 (wobei: y=Ausgabe & t= Erwartung)
+Aktivierungsfunktion = Identifikationsfunktion(Input-Layer), Relu(Hidden-Layer),  Softmax(Output-Layer)
+
+Input: wir haben 8 eingabewerte, somit brauchen wir 5 neuronen in der eingabeschicht
+
+Output: 5 verschiedene Klassen (A-E), somit werden hier 5 verschiedene Neuronen benötigt
+
+Hidden-Layer: 
+- Versuch 1:
