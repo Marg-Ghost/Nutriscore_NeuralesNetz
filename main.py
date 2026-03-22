@@ -3,21 +3,21 @@ import random
 import math
 
 class NeuronalesNetz:
-    def __init__(self, file):
+    def __init__(self, file, input_num, output_num, Hidden_num, Knoten_num):
         if not isinstance(file, str):
             raise TypeError("You must provide teh directory")
         # get Data
         data = pd.read_excel(file)
         rows = ["Energie (kJ)", "Gesätt. Fetts. (g)", "Zucker (g)", "Salz (g)", "Ballastst. (g)", "Eiweiß (g)", "Obst/Gem. (%)"]
         self.input_val = [data[rows].iloc[i].tolist() for i in range(len(data))]
+        erwartung = [data[["Score"]].iloc[i].tolist() for i in range(len(data))]
+        self.erwartung_val = [self.reverse_nutriscore(i) for i in erwartung]
+        print(self.erwartung_val)
         #Struktere
-        self.input_num = 7
-        self.output_val = 5
-        self.Hidden_Layer = 1
-        self.Knoten_pL = self.input_num + 2
+        self.structure = [input_num, output_num, Hidden_num, Knoten_num]
         #Gewichtungen
-        self.base = self.create_base_vector([random.choice([-2,-1,-0,1,2]) for i in range(self.input_num+self.Knoten_pL*self.Hidden_Layer+self.output_val)])
-        self.weight = self.create_matrix([random.choice([-2,-1,-0,1,2]) for i in range((self.input_num*self.Knoten_pL)+((self.Knoten_pL*self.Knoten_pL)*self.Hidden_Layer)+(self.output_val*self.Knoten_pL))])
+        self.base = self.create_base_vector([random.choice([-2,-1,-0,1,2]) for i in range(self.structure[0]+self.structure[3]*self.structure[2]+self.structure[1])])
+        self.weight = self.create_matrix([random.choice([-2,-1,-0,1,2]) for i in range((self.structure[0]*self.structure[3])+((self.structure[3]*self.structure[3])*self.structure[2])+(self.structure[1]*self.structure[3]))])
 
     #vector/matrix definition
     def create_matrix(self, val_w):
@@ -27,26 +27,26 @@ class NeuronalesNetz:
         ak_pos = 0
 
         # entry-layer
-        for _ in range(self.Knoten_pL):
-            matrix_Knoten = val_w[ak_pos : ak_pos+self.input_num]
+        for _ in range(self.structure[3]):
+            matrix_Knoten = val_w[ak_pos : ak_pos+self.structure[0]]
             matrix_layer.append(matrix_Knoten)
-            ak_pos += self.input_num
+            ak_pos += self.structure[0]
         matrix_ges.append(matrix_layer)
         matrix_layer = []
 
         # n: hidden-layer
-        """if self.Hidden_Layer >1:
-            for _ in range(self.Hidden_Layer):
-                for _ in range(self.Knoten_pL):
-                    matrix_Knoten = val_w[ak_pos : ak_pos + self.Knoten_pL]
+        if self.structure[2] >1:
+            for _ in range(self.structure[2]):
+                for _ in range(self.structure[3]):
+                    matrix_Knoten = val_w[ak_pos : ak_pos + self.structure[3]]
                     matrix_layer.append(matrix_Knoten)
-                    ak_pos += self.Knoten_pL
+                    ak_pos += self.structure[3]
                 matrix_ges.append(matrix_layer)
-                matrix_layer = []"""
+                matrix_layer = []
 
         # output-layer
-        for _ in range(self.output_val):
-            matrix_Knoten = val_w[ak_pos : ak_pos + self.Knoten_pL]
+        for _ in range(self.structure[1]):
+            matrix_Knoten = val_w[ak_pos : ak_pos + self.structure[3]]
             matrix_layer.append(matrix_Knoten)
         matrix_ges.append(matrix_layer)
         return matrix_ges
@@ -55,13 +55,22 @@ class NeuronalesNetz:
         basis_Layer =[]
         akt_pos = 0
 
-        for _ in range(self.Hidden_Layer):
-            for _ in range(self.Knoten_pL):
+        for _ in range(self.structure[2]):
+            for _ in range(self.structure[3]):
                 basis_Layer.append(base_ges[akt_pos])
                 akt_pos += 1
             base_ges_format.append(basis_Layer)
             basis_Layer = []
-        for _ in range(self.output_val):
+
+        if self.structure[2] > 1:
+            for _ in range(self.structure[2]):
+                for _ in range(self.structure[3]):
+                    basis_Layer.append(base_ges[akt_pos])
+                    akt_pos += 1
+                base_ges_format.append(basis_Layer)
+                basis_Layer = []
+
+        for _ in range(self.structure[1]):
             basis_Layer.append(base_ges[akt_pos])
             akt_pos += 1
         base_ges_format.append(basis_Layer)
@@ -81,35 +90,8 @@ class NeuronalesNetz:
 
         return erg
 
-    #funktionen des Neuronalen Netzes
-    def forwardpropagation(self):
-        # i = Tuplet aus 8 Werten
-        ges_output = []
-        for val in self.input_val:
-            eingabe_werte = [k for k in val]
-            aktuelle_Layer = []
-            equation = 0
-            # für Knoten vor der Outputschicht Relu-Funktion
-
-            # input & hidden
-            for l in range(len(self.weight)):
-                for j in range(len(self.weight[l])): #für jeden Knoten einmal
-                    for k in range(len(self.weight[l][j])): #welche werte leigen aus letzter Schicht vor?
-                        equation += eingabe_werte[k] * self.weight[l][j][k]
-                    aktuelle_Layer.append(self.Relu(equation + self.base[l][j]))
-                eingabe_werte = aktuelle_Layer
-                aktuelle_Layer = []
-            #output
-            final_values = []
-            for j in range(self.output_val):  # für jeden Knoten einmal
-                for k in range(len(eingabe_werte)):
-                    equation += eingabe_werte[k] * self.weight[-1][j][k]
-                final_values.append(equation + self.base[-1][j])
-            ges_output.append(self.Softmax(final_values))
-            max_index = [ges_output[k].index(max(ges_output[k])) for k in range(len(ges_output))]
-            return_output = [self.Nutriscore(k) for k in max_index]
-        return return_output
-    def Nutriscore(self, k):
+    #output evaluateion
+    def nutriscore(self, k):
         match(k):
             case 0:
                 return "A"
@@ -121,7 +103,61 @@ class NeuronalesNetz:
                 return "D"
             case 4:
                 return "F"
+    def reverse_nutriscore(self,k):
+        match(k):
+            case ["A"]:
+                return 0
+            case ["B"]:
+                return 1
+            case ["C"]:
+                return 2
+            case ["D"]:
+                return 3
+            case ["E"]:
+                return 4
+
+    #funktionen des Neuronalen Netzes
+    def forwardpropagation(self):
+        # i = Tuplet aus 8 Werten
+        ges_output = []
+        for val in self.input_val:
+            eingabe_werte = [k for k in val]
+            aktuelle_Layer = []
+            equation = 0
+            # für Knoten vor der Outputschicht Relu-Funktion
+
+            # input & hidden
+            for l in range(len(self.weight) - self.structure[1]):
+                for j in range(len(self.weight[l])): #für jeden Knoten einmal
+                    for k in range(len(self.weight[l][j])): #welche werte leigen aus letzter Schicht vor?
+                        equation += eingabe_werte[k] * self.weight[l][j][k]
+                    aktuelle_Layer.append(self.Relu(equation + self.base[l][j]))
+                eingabe_werte = aktuelle_Layer
+                aktuelle_Layer = []
+            #output
+            final_values = []
+            for j in range(self.structure[1]):  # für jeden Knoten einmal
+                for k in range(len(eingabe_werte)):
+                    equation += eingabe_werte[k] * self.weight[-1][j][k]
+                final_values.append(equation + self.base[-1][j])
+            ges_output.append(self.Softmax(final_values))
+
+            #output protokoll
+        max_index_pos = [ges_output[k].index(max(ges_output[k])) for k in range(len(ges_output))]
+        return_output = [self.nutriscore(k) for k in max_index_pos]
+        return return_output
+    def Fehlerrate(self, results):
+        error = []
+        for n,i in enumerate(results):
+            calcualtion = (1.0 - i[self.erwartung_val[n]])**2
+            error.append(calcualtion)
+        return error
+    def backpropagation(self):
+        for i in range(len(self.weight)):
+            for k in range(len(self.weight[i])):
+                for j in range(len(self.weight[i][k])):
+                    self.weight[i][j][k] += 0.1 * (self.Fehlerrate(self.forwardpropagation(self.input_val))) * self.input_val
 
 
-neu =NeuronalesNetz("Trainingsdaten.xlsx")
+neu =NeuronalesNetz("Trainingsdaten.xlsx",7,5,1,9)
 print(neu.forwardpropagation())
