@@ -117,12 +117,13 @@ class NeuronalesNetz:
                 return 4
 
     #funktionen des Neuronalen Netzes
-    def forwardpropagation(self):
+    def forwardpropagation(self, training= False):
         # i = Tuplet aus 8 Werten
         ges_output = []
         for val in self.input_val:
             eingabe_werte = [k for k in val]
             aktuelle_Layer = []
+            alle_Knoten = []
             equation = 0
             # für Knoten vor der Outputschicht Relu-Funktion
 
@@ -145,19 +146,26 @@ class NeuronalesNetz:
             #output protokoll
         max_index_pos = [ges_output[k].index(max(ges_output[k])) for k in range(len(ges_output))]
         return_output = [self.nutriscore(k) for k in max_index_pos]
+        if training:
+            return return_output, eingabe_werte
         return return_output
     def Fehlerrate(self, results):
         error = []
-        for n,i in enumerate(results):
-            calcualtion = (1.0 - i[self.erwartung_val[n]])**2
+        for i in range(len(results)):
+            calcualtion = (1.0 - self.erwartung_val[i])**2
             error.append(calcualtion)
         return error
     def backpropagation(self):
+        erg, Knoten_ges = self.forwardpropagation(True)
+        Knotne_für_rechnene = [self.input_val, Knoten_ges]
+        print(Knotne_für_rechnene)
         for i in range(len(self.weight)):
             for k in range(len(self.weight[i])):
                 for j in range(len(self.weight[i][k])):
-                    self.weight[i][j][k] += 0.1 * (self.Fehlerrate(self.forwardpropagation(self.input_val))) * self.input_val
+                    print(self.Fehlerrate(erg))
+                    self.weight[i][j][k] += 0.1 * (self.Fehlerrate(erg)) * self.input_val
 
 
 neu =NeuronalesNetz("Trainingsdaten.xlsx",7,5,1,9)
 print(neu.forwardpropagation())
+print(neu.backpropagation())
