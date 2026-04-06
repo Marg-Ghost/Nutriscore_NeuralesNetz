@@ -3,7 +3,7 @@ import random
 import math
 
 class NeuronalesNetz:
-    def __init__(self, file, input_num, output_num, Hidden_num, Knoten_num):
+    def __init__(self, file, input_num, output_num, Hidden_num, Knoten_num, manuell=False, base_val = None, weight_val = None):
         if not isinstance(file, str):
             raise TypeError("You must provide teh directory")
         # get Data
@@ -16,9 +16,17 @@ class NeuronalesNetz:
         #Struktere
         self.structure = [input_num, output_num, Hidden_num, Knoten_num]
         #Gewichtungen
-        self.base = self.create_base_vector([random.choice([-2,-1,-0,1,2]) for i in range(self.structure[0]+self.structure[3]*self.structure[2]+self.structure[1])])
-        self.weight = self.create_matrix([random.choice([-2,-1,-0,1,2]) for i in range((self.structure[0]*self.structure[3])+((self.structure[3]*self.structure[3])*self.structure[2])+(self.structure[1]*self.structure[3]))])
-
+        if not manuell:
+            self.base = self.create_base_vector([random.choice([-2,-1,-0,1,2]) for i in range(self.structure[0]+self.structure[3]*self.structure[2]+self.structure[1])])
+            self.weight = self.create_matrix([random.choice([-2,-1,-0,1,2]) for i in range((self.structure[0]*self.structure[3])+((self.structure[3]*self.structure[3])*self.structure[2])+(self.structure[1]*self.structure[3]))])
+            print(f"base: {self.base}")
+            print(f"weight: {self.weight}")
+        else:
+            print(f"base: {base_val}")
+            print(f"weight: {weight_val}")
+            self.base = base_val
+            self.weight = weight_val
+            
     #vector/matrix definition
     def create_matrix(self, val_w):
         matrix_ges = []
@@ -102,7 +110,7 @@ class NeuronalesNetz:
             case 3:
                 return "D"
             case 4:
-                return "F"
+                return "E"
     def reverse_nutriscore(self,k):
         match(k):
             case ["A"]:
@@ -143,21 +151,53 @@ class NeuronalesNetz:
             ges_output.append(self.Softmax(final_values))
 
             #output protokoll
+        
         max_index_pos = [ges_output[k].index(max(ges_output[k])) for k in range(len(ges_output))]
         return_output = [self.nutriscore(k) for k in max_index_pos]
-        return return_output
-    def Fehlerrate(self, results):
-        error = []
+        # print(ges_output)
+        return return_output, ges_output
+    
+    def Fehlerrate(self, results, ges_output):
+        error = {}
+        # erwartung_val = [self.reverse_nutriscore(i) for i in self.erwartung_val]
+        # print(self.erwartung_val)
+        # print(erwartung_val)
         for n,i in enumerate(results):
-            calcualtion = (1.0 - i[self.erwartung_val[n]])**2
-            error.append(calcualtion)
+            expected = self.erwartung_val[n]
+            # print(expected)
+            list_item = self.reverse_nutriscore([i])
+            all_values = ges_output[n]
+            calcualtion = (1.0 - all_values[expected])**2
+            error[n] = [list_item, calcualtion]
+        # print(error)
         return error
-    def backpropagation(self):
-        for i in range(len(self.weight)):
-            for k in range(len(self.weight[i])):
-                for j in range(len(self.weight[i][k])):
-                    self.weight[i][j][k] += 0.1 * (self.Fehlerrate(self.forwardpropagation(self.input_val))) * self.input_val
+    def backpropagation(self, epoch=100):
+        for epochs in range(epoch):
+            inefficient = False
+            forwardp = self.forwardpropagation()
+            erg, ges_output = forwardp[0], forwardp[1]
+            all_error = [self.Fehlerrate(erg, ges_output)[i][1] for i in range(self.Fehlerrate(erg, ges_output).__len__())]
+            print(all_error)
+            complete_error = [True for i in all_error if i > 0.01]
+            if False in complete_error:
+                for sample_idx, input_sample in enumerate(self.input_val):
+                    for i in range(len(self.weight)):
+                        for j in range(len(self.weight[i])):
+                            for k in range(len(self.weight[i][j])):
+                                error = self.Fehlerrate(erg[sample_idx], ges_output[sample_idx])[sample_idx][1]
+                                if self.weight[i][j][k] > 0:
+                                    self.weight[i][j][k] -= 0.1 * error * input_sample[k]
+                                else:
+                                    self.weight[i][j][k] += 0.1 * error * input_sample[k]
+
+        return self.weight , self.base
 
 
 neu =NeuronalesNetz("Trainingsdaten.xlsx",7,5,1,9)
 print(neu.forwardpropagation())
+frorw = neu.forwardpropagation()
+print(neu.Fehlerrate(frorw[0], frorw[1]))
+next_back = neu.backpropagation()
+print(next_back)
+next = NeuronalesNetz("Trainingsdaten.xlsx",7,5,1,9, manuell=True, base_val=next_back[1], weight_val=next_back[0])
+print(next.forwardpropagation()[0])
